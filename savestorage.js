@@ -3,71 +3,97 @@
  * Version: 2.0.0
  * Website: https://github.com/sarkhanrajabov/saveStorage
  * Author: Sarkhan Rajabov
-**/
+ **/
 
-(function($){
-    $.fn.saveStorage = function(options){
-        'use strict';
+(function ($) {
+	$.fn.saveStorage = function (options) {
+		'use strict';
 
-        if(typeof Storage !== "undefined"){
+		if (typeof Storage !== 'undefined') {
+			var form = $(this),
+				key = $(this).attr('id') + '_saveStorage',
+				defaults = {
+					exclude: [],
+				};
 
-            var form     = $(this),
-                key      = $(this).attr('id')+'_saveStorage',
-                defaults = {
-                    exclude: []
-                };
+			var opts = $.extend({}, defaults, options);
 
-            var opts = $.extend({}, defaults, options);
+			var excludeInputType = function () {
+				var inputType = '';
 
-            var excludeInputType = function(){
-                var inputType = '';
+				$.each(opts.exclude, function (k, v) {
+					inputType += 'input[type=' + v + '],';
+				});
 
-                $.each(opts.exclude, function(k,v){
-                    inputType += 'input[type='+v+'],'
-                });
+				return inputType;
+			};
 
-                return inputType;
-            };
+			form.find(':input').bind('change keyup', function () {
+				updateStorage();
+			});
 
-            form.find(':input').bind('change keyup', function () {
-                var serializeForm = form.serializeArray();
-                localStorage.setItem(key, JSON.stringify(serializeForm));
-            });
+			var initApp = function () {
+				if (localStorage.getItem(key) !== null) {
+					var data = JSON.parse(localStorage.getItem(key)),
+						inputRadio = form.find('input[type=radio]'),
+						inputCheckbox = form.find('input[type=checkbox]');
 
-            var initApp = function(){
-                if(localStorage.getItem(key) !== null){
+					for (var i = 0; i < data.length; i++) {
+						form.find(':input[name=' + data[i].name + ']')
+							.not(excludeInputType() + 'input[type=radio], input[type=checkbox]')
+							.val(data[i].value);
 
-                    var data          = JSON.parse(localStorage.getItem(key)),
-                        inputRadio    = form.find('input[type=radio]'),
-                        inputCheckbox = form.find('input[type=checkbox]');
+						for (var j = 0; j < inputRadio.length; j++) {
+							if (
+								inputRadio[j].getAttribute('name') === data[i].name &&
+								inputRadio[j].getAttribute('value') === data[i].value
+							) {
+								inputRadio[j].checked = true;
+							}
+						}
 
-                    for(var i = 0; i < data.length; i++){
-                        form.find(':input[name='+data[i].name+']')
-                            .not(excludeInputType() + 'input[type=radio], input[type=checkbox]').val(data[i].value);
+						for (var k = 0; k < inputCheckbox.length; k++) {
+							if (
+								inputCheckbox[k].getAttribute('name') === data[i].name &&
+								inputCheckbox[k].getAttribute('value') === data[i].value
+							) {
+								inputCheckbox[k].checked = true;
+							}
+						}
+					}
+				}
+			};
 
-                        for(var j = 0; j < inputRadio.length; j++){
-                            if(inputRadio[j].getAttribute('name') === data[i].name && inputRadio[j].getAttribute('value') === data[i].value){
-                                inputRadio[j].checked = true;
-                            }
-                        }
+			var updateStorage = function () {
+				var data = [];
+				var cache = {};
+				var inputs = form.find(':input');
+				inputs.each(function (i, elm) {
+					let type = $(elm).attr('type');
+					let name = $(elm).attr('name');
+					let value = $(elm).val();
+					if (type == 'radio') {
+						value = $(`input[type=radio][name=${name}]:checked`).val();
+					}
+					if (name != undefined && value.length > 0 && cache[name] == undefined) {
+						cache[name] = 1;
+						data.push({
+							name: name,
+							value: value,
+						});
+					}
+				});
+				localStorage.setItem(key, JSON.stringify(data));
+			};
 
-                        for(var k = 0; k < inputCheckbox.length; k++){
-                            if(inputCheckbox[k].getAttribute('name') === data[i].name && inputCheckbox[k].getAttribute('value') === data[i].value){
-                                inputCheckbox[k].checked = true;
-                            }
-                        }
-                    }
-                }
-            };
+			form.submit(function () {
+				localStorage.removeItem(key);
+			});
 
-            form.submit(function () {
-                localStorage.removeItem(key);
-            });
-
-            initApp();
-        }
-        else {
-            console.error('Sorry! No web storage support.')
-        }
-    };
+			initApp();
+			updateStorage();
+		} else {
+			console.error('Sorry! No web storage support.');
+		}
+	};
 })(jQuery);
